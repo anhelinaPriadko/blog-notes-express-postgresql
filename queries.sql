@@ -1,6 +1,10 @@
 create table books (
 id serial primary key,
 name varchar(100) not null,
+ISBN varchar(13) not null,
+sImage text not null,
+mInmage text not null,
+lImage text not null,
 rating integer not null check (rating >= 1 and rating <= 5)
 );
 
