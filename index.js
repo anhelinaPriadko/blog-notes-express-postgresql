@@ -8,6 +8,7 @@ import {} from "./utilities/validationSchemas.mjs";
 const app = express();
 const port = 3000;
 
+app.use(express.json());
 app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -32,41 +33,55 @@ async function getBookDataByISBN(isbn) {
       },
     });
 
-    return data ?? fail("Can`t find information about this book!");
+    return data[`ISBN:${isbn}`] ?? fail("Can`t find information about this book!");
   } catch (error) {
     if (error.message === "Can`t find information about this book!")
       throw error;
-    throw new Error(`Axios/network error: ${error.message}`);
+    throw new Error(error.message);
   }
 }
-
-function getBookObject(isbn, reqData, rating) {
-  return {
-    isbn: isbn,
-    name: reqData.title,
-    simage: reqData.cover.small,
-    mimage: reqData.cover.medium,
-    limage: reqData.cover.large,
-    rating: rating,
-  };
+class Book {
+  constructor(isbn, reqData, rating) {
+    (this.isbn = isbn),
+      (this.name = reqData.title ?? "Unknown Title"),
+      (this.authors = reqData.authors
+        ? reqData.authors.map((a) => a.name)
+        : []),
+      (this.simage = reqData.cover?.small ?? null),
+      (this.mimage = reqData.cover?.medium ?? null),
+      (this.limage = reqData.cover?.large ?? null),
+      (this.rating = rating);
+  }
 }
 
 app.post("/add", async (req, res) => {
   let error = null;
+  let newBookId = null;
   let { isbn, review, genres, rating } = req.body;
   try {
-    let bookReqData = await getBookDataByISBN(isbn);
-    let newBookId = await db.addBook(getBookObject(isbn, bookReqData, rating));
-    if(!newBookId)
-        throw new Error("Something went wrong, retry again!");
-    // here the logic of adding data to the book_reviews
-    await db.addGenres(genres);
-    // here logic adding to the books_genres
-    //here logic adding to the authors
-    //here logic adding to the books_authors
+    let existBook = await db.checkBookISBN(isbn);
+    if (existBook) fail("This book has already been added!");
+    const bookReqData = await getBookDataByISBN(isbn);
+    console.log(bookReqData);
+    newBookId = await db.addBookWithRelations(
+      new Book(isbn, bookReqData, rating),
+      review,
+      genres
+    );
+
+    console.log(newBookId);
   } catch (e) {
-    error = e.message;
+    if (
+      e.message === "This book has already been added!" ||
+      "Can`t find information about this book!"
+    )
+      error = e.message;
+    else error = "Something went wrong, please retry again!";
   }
+  res.json({
+    bookId: newBookId,
+    error: error,
+  });
 });
 
 app.listen(port, () => {

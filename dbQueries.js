@@ -1,8 +1,16 @@
-import { db } from "./database.js";
+import pg from "pg";
+import { dbConfig } from "./config/dataBaseConfig.js";
+const db = new pg.Pool(dbConfig);
 
-const fail = (msg) => {
-  throw new Error(msg);
-};
+export async function getGenres() {
+  try {
+    const result = await db.query("select name from genres order by name");
+    return result.rows.array();
+  } catch (error) {
+    console.log(error);
+  }
+  return [];
+}
 
 export async function getAllBooks() {
   let books = [];
@@ -16,7 +24,7 @@ export async function getAllBooks() {
   return books;
 }
 
-async function checkBookISBN(isbn) {
+export async function checkBookISBN(isbn) {
   try {
     const result = await db.query("select 1 from books where isbn = $1", [
       isbn,
@@ -28,43 +36,101 @@ async function checkBookISBN(isbn) {
   return false;
 }
 
-export async function addBook(book) {
-  let id = null;
+export async function addBook(client, book) {
+  const result = await client.query(
+    "insert into books (name, isbn, simage, mimage, limage, rating) values ($1, $2, $3, $4, $5, $6) returning id",
+    [
+      book.name,
+      book.isbn,
+      book.simage,
+      book.mimage,
+      book.limage,
+      Number(book.rating),
+    ]
+  );
+  return result.rows[0].id;
+}
+
+export async function getGenreId(name) {
   try {
-    let alreadyExist = await checkBookISBN(book.isbn);
-    if (alreadyExist)
-      throw new Error("Book with this ISBN has already been added!");
-    id = await db.query(
-      "insert into books (name, isbn, simage, mimage, limage, rating) values ($1, $2, $3, $4, $5, $6) returning id",
-      [book.name, book.isbn, book.simage, book.mimage, book.limage, book.rating]
+    const result = await db.query("select id from genres where name = $1", [
+      name,
+    ]);
+    return result.rows[0]?.id;
+  } catch (error) {
+    console.log(error);
+  }
+  return null;
+}
+
+export async function addGenre(client, bookGenre) {
+  let result = await getGenreId(bookGenre);
+  if (!result) {
+    result = await client.query(
+      "insert into genres (name) values ($1) returning id",
+      [bookGenre]
     );
-  } catch (error) {
-    if (error.message === "Book with this ISBN has already been added!")
-      throw error;
-    console.log(error);
   }
-  return id;
+  return result.rows[0].id;
 }
 
-export async function getGenres() {
+export async function addBookReview(client, id, review) {
+  await client.query("insert into book_reviews (id, review) values ($1, $2)", [
+    id,
+    review,
+  ]);
+}
+
+export async function getAuthorId(name) {
   try {
-    const result = await db.query("select name from genres order by name");
-    return result.rows.array();
+    const result = await db.query("select id from authors where name = $1", [
+      name,
+    ]);
+    return result.rows[0]?.id;
   } catch (error) {
     console.log(error);
   }
-  return [];
+  return null;
 }
 
-export async function addGenres(genres) {
-  let genres = await getGenres();
-  genres.forEach(async (genre) => {
-    if (!genres.includes(genre)) {
-      try {
-        await db.query("insert into genres (name) values ($1)", [genre]);
-      } catch (error) {
-        console.log(error);
-      }
+export async function addAuthor(client, author) {
+  let result = await getAuthorId(author);
+  if (!result) {
+    result = await client.query(
+      "insert into authors (name) values ($1) returning id",
+      [author]
+    );
+  }
+  return result.rows[0].id;
+}
+
+export async function addBookWithRelations(book, review, genres) {
+  const client = await db.connect();
+  try {
+    await client.query("begin");
+    const bookId = await addBook(client, book);
+    await addBookReview(client, bookId, review);
+    for (let genre of genres) {
+      const genreId = await addGenre(client, genre);
+      await client.query(
+        "insert into books_genres (book_id, genre_id) values ($1, $2)",
+        [bookId, genreId]
+      );
     }
-  });
+    for (let author of book.authors) {
+      const authorId = await addAuthor(client, author);
+      await client.query(
+        "insert into books_authors (book_id, author_id) values ($1, $2)",
+        [bookId, authorId]
+      );
+    }
+    await client.query("COMMIT");
+    return bookId;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error(error);
+    throw error;
+  } finally {
+    client.release();
+  }
 }
