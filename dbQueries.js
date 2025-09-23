@@ -51,6 +51,32 @@ export async function addBook(client, book) {
   return result.rows[0].id;
 }
 
+export async function getBook(id) {
+  const bookResult = await db.query(
+    "select books.id as id, name, isbn, limage, review from books " +
+      "join book_reviews on books.id = book_reviews.id " +
+      "where books.id = $1",
+    [id]
+  );
+  const genresResult = await db.query(
+    "select name from genres " +
+      "join books_genres on genres.id = books_genres.genre_id " +
+      "where books_genres.book_id = $1",
+    [id]
+  );
+  const authorsResult = await db.query(
+      "select name from authors " +
+      "join books_authors on authors.id = books_authors.author_id " +
+      "where books_authors.book_id = $1",
+    [id]
+  );
+  return {
+    bookData: bookResult.rows[0],
+    genres: genresResult.rows,
+    authors: authorsResult.rows
+  }
+}
+
 export async function getGenreId(name) {
   try {
     const result = await db.query("select id from genres where name = $1", [
@@ -124,10 +150,10 @@ export async function addBookWithRelations(book, review, genres) {
         [bookId, authorId]
       );
     }
-    await client.query("COMMIT");
+    await client.query("commit");
     return bookId;
   } catch (error) {
-    await client.query("ROLLBACK");
+    await client.query("rollback");
     console.error(error);
     throw error;
   } finally {

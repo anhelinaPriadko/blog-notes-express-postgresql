@@ -13,10 +13,11 @@ app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: true }));
 
 const basicURL = "https://openlibrary.org/api/books";
+const defaultErrMess = "Something went wrong, please retry again!";
 
 app.get("/", async (req, res) => {
   let books = await db.getAllBooks();
-  res.json({ books: books });
+  return res.json({ books: books });
 });
 
 const fail = (msg) => {
@@ -33,7 +34,9 @@ async function getBookDataByISBN(isbn) {
       },
     });
 
-    return data[`ISBN:${isbn}`] ?? fail("Can`t find information about this book!");
+    return (
+      data[`ISBN:${isbn}`] ?? fail("Can`t find information about this book!")
+    );
   } catch (error) {
     if (error.message === "Can`t find information about this book!")
       throw error;
@@ -62,26 +65,39 @@ app.post("/add", async (req, res) => {
     let existBook = await db.checkBookISBN(isbn);
     if (existBook) fail("This book has already been added!");
     const bookReqData = await getBookDataByISBN(isbn);
-    console.log(bookReqData);
     newBookId = await db.addBookWithRelations(
       new Book(isbn, bookReqData, rating),
       review,
       genres
     );
-
-    console.log(newBookId);
   } catch (e) {
     if (
       e.message === "This book has already been added!" ||
       "Can`t find information about this book!"
     )
       error = e.message;
-    else error = "Something went wrong, please retry again!";
+    else error = defaultErrMess;
   }
-  res.json({
+  return res.json({
     bookId: newBookId,
     error: error,
   });
+});
+
+app.get("/books/:bookId", async (req, res) => {
+  let bookId = req.params.bookId;
+  try {
+    let book = await db.getBook(bookId);
+    if (book) {
+      return res.json({
+        book: book.bookData,
+        genres: book.genres,
+        authors: book.authors,
+      });
+    }
+  } catch (e) {
+    return res.json({error: defaultErrMess});
+  }
 });
 
 app.listen(port, () => {
