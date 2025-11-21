@@ -160,3 +160,26 @@ export async function addBookWithRelations(book, review, genres) {
     client.release();
   }
 }
+
+
+export async function getFilteredBooks(authors, genres){
+  let books = [];
+  try{
+    const result  = await db.query("select * from get_books_by_filter($1, $2)", [authors, genres]);
+    books = result.rows;
+  } catch (e) {
+    console.log(e);
+  }
+
+  return books;
+}
+
+export async function editBookReview(bookReviewId, newBookReviewText){
+  try{
+    await db.query("call update_book_review($1, $2)", [bookReviewId,newBookReviewText]);
+    return true;
+  } catch (e){
+    console.log(e);
+  }
+  return false;
+}

@@ -100,6 +100,31 @@ app.get("/books/:bookId", async (req, res) => {
   }
 });
 
+app.get("/filteredBooks", (req, res) => {
+  const genres = req.queries.genres;
+  const authors = req.queries.authors;
+  let books = []
+  try{
+    books = db.getFilteredBooks(authors, genres);
+  } catch {
+    return res.json({error: defaultErrMess});
+  }
+  return res.json({books: books});
+}); //by all coincidences with genres and authors
+
+app.patch("/editReview", async (req, res) => {
+  let bookReviewId = req.params.id;
+  let newBookReviewText = req.body.review;
+  try{
+    let updatedSuccessfully = await db.editBookReview(bookReviewId, newBookReviewText);
+    if(updatedSuccessfully)
+      return res.json("Book review has been updated successfully!");
+  } catch (e) { }
+  return res.json({error: defaultErrMess});
+});
+
+// app.delete("");
+
 app.listen(port, () => {
   console.log(`Listening on port ${port}`);
 });
