@@ -62,14 +62,23 @@ app.post("/add", async (req, res) => {
   let newBookId = null;
   let { isbn, review, genres, rating } = req.body;
   try {
-    let existBook = await db.checkBookISBN(isbn);
+    let existBook = await db.checkBookISBNIsNotDeleted(isbn);
     if (existBook) fail("This book has already been added!");
-    const bookReqData = await getBookDataByISBN(isbn);
-    newBookId = await db.addBookWithRelations(
+    if(await checkBookISBNIsDeleted(isbn)){
+      newBookId = await db.addDeletedBookWithRelations(
+        isbn,
+        rating,
+        review,
+        genres
+      );
+    } else{
+      const bookReqData = await getBookDataByISBN(isbn);
+      newBookId = await db.addBookWithRelations(
       new Book(isbn, bookReqData, rating),
       review,
       genres
     );
+    }
   } catch (e) {
     if (
       e.message === "This book has already been added!" ||
@@ -88,16 +97,21 @@ app.get("/books/:bookId", async (req, res) => {
   let bookId = req.params.bookId;
   try {
     let book = await db.getBook(bookId);
-    if (book) {
+    if (book.id) {
+      let genres = await db.getBookGenres(bookId);
+      let authors = await db.getBookAuthors(bookId);
       return res.json({
-        book: book.bookData,
-        genres: book.genres,
-        authors: book.authors,
+        book: book,
+        genres: genres,
+        authors: authors,
       });
+    } else {
+      return res.json({error: "This book doesn`t exist!"});
     }
   } catch (e) {
-    return res.json({error: defaultErrMess});
+    console.log(e);
   }
+  return res.json({error: defaultErrMess});
 });
 
 app.get("/filteredBooks", (req, res) => {
@@ -116,14 +130,19 @@ app.patch("/editReview:id", async (req, res) => {
   let bookReviewId = req.params.id;
   let newBookReviewText = req.body.review;
   try{
-    let updatedSuccessfully = await db.editBookReview(bookReviewId, newBookReviewText);
-    if(updatedSuccessfully)
-      return res.json("Book review has been updated successfully!");
-  } catch (e) { }
+    if(await db.checkBookExists(bookReviewId)){
+      let updatedSuccessfully = await db.editBookReview(bookReviewId, newBookReviewText);
+      if(updatedSuccessfully)
+        return res.json("Book review has been updated successfully!");
+    } else 
+      return res.json({error: "This book doesn`t exist!"});
+  } catch (e) {
+    console.log(e);
+  }
   return res.json({error: defaultErrMess});
 });
 
-// app.delete("");
+// app.delete("/delete:id", );
 
 app.listen(port, () => {
   console.log(`Listening on port ${port}`);
