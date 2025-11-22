@@ -36,6 +36,16 @@ export async function checkBookISBN(isbn) {
   return false;
 }
 
+export async function checkBookExists(id){
+  try{
+    const result = await db.query("select 1 from books where id = $1", [id]);
+    return result.rows.length > 0;
+  } catch(e){
+    console.log(e);
+  }
+  return false;
+}
+
 export async function addBook(client, book) {
   const result = await client.query(
     "insert into books (name, isbn, simage, mimage, limage, rating) values ($1, $2, $3, $4, $5, $6) returning id",
@@ -176,8 +186,15 @@ export async function getFilteredBooks(authors, genres){
 
 export async function editBookReview(bookReviewId, newBookReviewText){
   try{
-    await db.query("call update_book_review($1, $2)", [bookReviewId,newBookReviewText]);
-    return true;
+    const result = await db.query(
+      "call update_book_review($1, $2, $3)", 
+      [bookReviewId, newBookReviewText, null]
+    );
+    const rowsAffected = result.rows[0].p_rows_affected;
+
+    if (rowsAffected > 0) {
+      return true;
+    }
   } catch (e){
     console.log(e);
   }

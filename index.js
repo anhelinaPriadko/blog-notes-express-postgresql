@@ -112,7 +112,7 @@ app.get("/filteredBooks", (req, res) => {
   return res.json({books: books});
 }); //by all coincidences with genres and authors
 
-app.patch("/editReview", async (req, res) => {
+app.patch("/editReview:id", async (req, res) => {
   let bookReviewId = req.params.id;
   let newBookReviewText = req.body.review;
   try{
