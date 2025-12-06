@@ -54,7 +54,10 @@ export async function checkBookISBNIsDeleted(isbn) {
 
 export async function checkBookExists(id) {
   try {
-    const result = await db.query("select 1 from books where id = $1 and isdeleted = false", [id]);
+    const result = await db.query(
+      "select 1 from books where id = $1 and isdeleted = false",
+      [id]
+    );
     return result.rows.length > 0;
   } catch (e) {
     console.log(e);
@@ -87,9 +90,9 @@ export async function getBook(id) {
   return bookResult.rows[0];
 }
 
-export async function getBookGenres(bookId){
+export async function getBookGenres(bookId) {
   const genresResult = await db.query(
-      "select * from genres " +
+    "select * from genres " +
       "join books_genres on genres.id = books_genres.genre_id " +
       "where books_genres.book_id = $1",
     [bookId]
@@ -97,8 +100,8 @@ export async function getBookGenres(bookId){
   return genresResult.rows;
 }
 
-export async function getBookAuthors(bookId){
-    const authorsResult = await db.query(
+export async function getBookAuthors(bookId) {
+  const authorsResult = await db.query(
     "select * from authors " +
       "join books_authors on authors.id = books_authors.author_id " +
       "where books_authors.book_id = $1",
@@ -160,13 +163,14 @@ export async function addAuthor(client, author) {
   return result.rows[0].id;
 }
 
-async function addDeletedReview(client, bookId, review){
-  await client.query(
-    "update book_reiews set review = $1 where id = $2", 
-    [review, bookId]);
+async function addDeletedReview(client, bookId, review) {
+  await client.query("update book_reiews set review = $1 where id = $2", [
+    review,
+    bookId,
+  ]);
 }
 
-async function deleteBookGenresrelations(client, bookId){
+async function deleteBookGenresrelations(client, bookId) {
   await client.query("delete from books_genres where book_id = $1", [bookId]);
 }
 
@@ -201,18 +205,25 @@ export async function addBookWithRelations(book, review, genres) {
   }
 }
 
-async function addDeletedBook(client, bookId, rating){
+async function addDeletedBook(client, bookId, rating) {
   await client.query(
     "update books set rating = $1, isdeleted = false where id = $2",
     [rating, bookId]
   );
 }
 
-export async function addDeletedBookWithRelations(isbn, rating, review, genres) {
+export async function addDeletedBookWithRelations(
+  isbn,
+  rating,
+  review,
+  genres
+) {
   const client = await db.connect();
-  try{
+  try {
     await client.query("begin");
-    let resultId = await client.query("select id from books where isbn = $1", [isbn]);
+    let resultId = await client.query("select id from books where isbn = $1", [
+      isbn,
+    ]);
     let bookId = resultId.rows[0].id;
     await addDeletedBook(client, bookId, rating);
     await deleteBookGenresrelations(client, bookId);
@@ -224,11 +235,11 @@ export async function addDeletedBookWithRelations(isbn, rating, review, genres) 
         [bookId, genreId]
       );
     }
-  } catch(e){
+  } catch (e) {
     await client.query("rollback");
     console.error(error);
     throw error;
-  } finally{
+  } finally {
     await client.release();
   }
 }
@@ -237,11 +248,10 @@ export async function getFilteredBooks(authors, genres) {
   let books = [];
   try {
     const result = await db.query(
-      "select id, name, isbn, simage from get_books_by_filter($1, $2)" + 
-      "where isdeleted = false", [
-      authors,
-      genres,
-    ]);
+      "select id, name, isbn, simage from get_books_by_filter($1, $2)" +
+        "where isdeleted = false",
+      [authors, genres]
+    );
     books = result.rows;
   } catch (e) {
     console.log(e);
@@ -266,4 +276,23 @@ export async function editBookReview(bookReviewId, newBookReviewText) {
     console.log(e);
   }
   return false;
+}
+
+export async function deleteBook(bookId) {
+  const client = db.connect();
+  try {
+    await client.query("begin");
+    const result = await client.query(
+      "update books set isdeleted = true where id = $1",
+      [bookId]
+    );
+    await client.query("commit");
+    return result.rowCount > 0;
+  } catch (e) {
+    console.log(e);
+    await client.query("rollback");
+    return false;
+  } finally {
+    client.release();
+  }
 }

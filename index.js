@@ -142,7 +142,20 @@ app.patch("/editReview:id", async (req, res) => {
   return res.json({error: defaultErrMess});
 });
 
-// app.delete("/delete:id", );
+app.delete("/delete:id", async(req, res) =>{
+  let bookId = req.params.id;
+  try{
+    if(await db.checkBookExists(bookId)){
+      let deletedSuccessfully = await db.deleteBook(bookId);
+      if(deletedSuccessfully)
+        return res.json("Book has been deleted successfully!");
+    } else 
+      return res.json({error: "This book doesn`t exist!"});
+  } catch (e) {
+    console.log(e);
+  }
+  return res.json({error: defaultErrMess});
+});
 
 app.listen(port, () => {
   console.log(`Listening on port ${port}`);
