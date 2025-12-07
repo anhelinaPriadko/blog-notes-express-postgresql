@@ -3,7 +3,7 @@ import bodyParser from "body-parser";
 import axios from "axios";
 import * as db from "./dbQueries.js";
 import { body, validationResult, checkSchema } from "express-validator";
-import {} from "./utilities/validationSchemas.mjs";
+import {addBookValidationSchema, editBookValidationSchema} from "./utilities/validationSchemas.mjs";
 
 const app = express();
 const port = 3000;
@@ -57,7 +57,7 @@ class Book {
   }
 }
 
-app.post("/add", async (req, res) => {
+app.post("/add", checkSchema(addBookValidationSchema), async (req, res) => {
   let error = null;
   let newBookId = null;
   let { isbn, review, genres, rating } = req.body;
@@ -126,7 +126,7 @@ app.get("/filteredBooks", (req, res) => {
   return res.json({books: books});
 }); //by all coincidences with genres and authors
 
-app.patch("/editReview:id", async (req, res) => {
+app.patch("/editReview:id", checkSchema(editBookValidationSchema),async (req, res) => {
   let bookReviewId = req.params.id;
   let newBookReviewText = req.body.review;
   try{
