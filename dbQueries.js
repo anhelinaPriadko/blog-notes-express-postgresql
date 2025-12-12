@@ -2,14 +2,17 @@ import pg from "pg";
 import { dbConfig } from "./config/dataBaseConfig.js";
 const db = new pg.Pool(dbConfig);
 
-export async function getGenres() {
+//is not tested
+async function getGenres() {
   const result = await db.query("select name from genres order by name");
   return result.rows.array();
 }
 
 export async function getAllBooks() {
-  return await db.query(
-    "select id, name, isbn, simage from books where isdeleted = false"
+  return (
+    await db.query(
+      "select id, name, isbn, simage from books where isdeleted = false"
+    )
   ).rows;
 }
 
@@ -259,10 +262,9 @@ export async function editBookReview(client, bookId, newBookReviewText) {
 }
 
 export async function deleteBook(bookId) {
-  await client.query(
-      "update books set isdeleted = true where id = $1",
-      [bookId]
-    );
+  await client.query("update books set isdeleted = true where id = $1", [
+    bookId,
+  ]);
 }
 
 export async function editBookRating(client, bookId, rating) {
@@ -276,10 +278,8 @@ export async function editBookRatingReview(bookId, rating, review) {
   const client = db.connect();
   try {
     await client.query("begin");
-    if(rating)
-      await editBookRating(client, bookId, rating);
-    if(review)
-      await editBookReview(client, bookId, review);
+    if (rating) await editBookRating(client, bookId, rating);
+    if (review) await editBookReview(client, bookId, review);
     await client.query("commit");
   } catch (e) {
     await client.query("rollback");

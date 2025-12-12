@@ -28,8 +28,8 @@ app.get("/", async (req, res) => {
     let books = await db.getAllBooks();
     return res.status(200).json({ books: books });
   } catch (e) {
-    console.log(e);
-    return res.status(404).json({ error: e });
+    console.log(e.message);
+    return res.status(500).json({ error: defaultErrMess });
   }
 });
 
@@ -84,7 +84,7 @@ app.post("/add", checkSchema(addBookValidationSchema), async (req, res) => {
       );
     }
   } catch (e) {
-    console.log(e);
+    console.log(e.message);
     return res
       .status(404)
       .json({ error: e.message.length > 45 ? defaultErrMess : e.message });
@@ -108,7 +108,7 @@ app.get("/books/:bookId", async (req, res) => {
       fail(bookDontExistError);
     }
   } catch (e) {
-    console.log(e);
+    console.log(e.message);
   }
   return res
     .status(404)
@@ -139,7 +139,7 @@ app.patch(
         await db.editBookRatingReview(bookId, newBookRating, newBookReviewText);
       } else fail(bookDontExistError);
     } catch (e) {
-      console.log(e);
+      console.log(e.message);
       return res
         .status(404)
         .json({ error: e.message.length > 45 ? defaultErrMess : e.message });
@@ -154,7 +154,7 @@ app.delete("/delete:id", async (req, res) => {
     if (await db.checkBookExists(bookId)) await db.deleteBook(bookId);
     else fail(bookDontExistError);
   } catch (e) {
-    console.log(e);
+    console.log(e.message);
     res
       .status(404)
       .json({ error: e.message.length > 45 ? defaultErrMess : e.message });
