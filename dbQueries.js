@@ -259,22 +259,10 @@ export async function editBookReview(client, bookId, newBookReviewText) {
 }
 
 export async function deleteBook(bookId) {
-  const client = db.connect();
-  try {
-    await client.query("begin");
-    const result = await client.query(
+  await client.query(
       "update books set isdeleted = true where id = $1",
       [bookId]
     );
-    await client.query("commit");
-    return result.rowCount > 0;
-  } catch (e) {
-    console.log(e);
-    await client.query("rollback");
-    return false;
-  } finally {
-    client.release();
-  }
 }
 
 export async function editBookRating(client, bookId, rating) {
