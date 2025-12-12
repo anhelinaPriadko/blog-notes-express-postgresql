@@ -13,30 +13,17 @@ export async function getGenres() {
 }
 
 export async function getAllBooks() {
-  let books = [];
-  try {
-    const result = await db.query(
-      "select id, name, isbn, simage from books where isdeleted = false"
-    );
-    books = result.rows;
-  } catch (error) {
-    console.log(error);
-  }
-
-  return books;
+  return await db.query(
+    "select id, name, isbn, simage from books where isdeleted = false"
+  ).rows;
 }
 
 export async function checkBookISBNIsNotDeleted(isbn) {
-  try {
-    const result = await db.query(
-      "select 1 from books where isbn = $1 and isdeleted = false",
-      [isbn]
-    );
-    return result.rows.length > 0;
-  } catch (error) {
-    console.log(error);
-  }
-  return false;
+  const result = await db.query(
+    "select 1 from books where isbn = $1 and isdeleted = false",
+    [isbn]
+  );
+  return result.rows.length > 0;
 }
 
 export async function checkBookISBNIsDeleted(isbn) {

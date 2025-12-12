@@ -3,7 +3,10 @@ import bodyParser from "body-parser";
 import axios from "axios";
 import * as db from "./dbQueries.js";
 import { body, validationResult, checkSchema } from "express-validator";
-import {addBookValidationSchema, editBookValidationSchema} from "./utilities/validationSchemas.mjs";
+import {
+  addBookValidationSchema,
+  editBookValidationSchema,
+} from "./utilities/validationSchemas.mjs";
 
 const app = express();
 const port = 3000;
@@ -16,8 +19,12 @@ const basicURL = "https://openlibrary.org/api/books";
 const defaultErrMess = "Something went wrong, please retry again!";
 
 app.get("/", async (req, res) => {
-  let books = await db.getAllBooks();
-  return res.json({ books: books });
+  try {
+    let books = await db.getAllBooks();
+    return res.status(200).json({ books: books });
+  } catch (e) {
+    return res.status(404).json({ error: e });
+  }
 });
 
 const fail = (msg) => {
@@ -62,22 +69,22 @@ app.post("/add", checkSchema(addBookValidationSchema), async (req, res) => {
   let newBookId = null;
   let { isbn, review, genres, rating } = req.body;
   try {
-    let existBook = await db.checkBookISBNIsNotDeleted(isbn);
-    if (existBook) fail("This book has already been added!");
-    if(await checkBookISBNIsDeleted(isbn)){
+    if (await db.checkBookISBNIsNotDeleted(isbn))
+      fail("This book has already been added!");
+    if (await db.checkBookISBNIsDeleted(isbn)) {
       newBookId = await db.addDeletedBookWithRelations(
         isbn,
         rating,
         review,
         genres
       );
-    } else{
+    } else {
       const bookReqData = await getBookDataByISBN(isbn);
       newBookId = await db.addBookWithRelations(
-      new Book(isbn, bookReqData, rating),
-      review,
-      genres
-    );
+        new Book(isbn, bookReqData, rating),
+        review,
+        genres
+      );
     }
   } catch (e) {
     if (
@@ -106,55 +113,61 @@ app.get("/books/:bookId", async (req, res) => {
         authors: authors,
       });
     } else {
-      return res.json({error: "This book doesn`t exist!"});
+      return res.json({ error: "This book doesn`t exist!" });
     }
   } catch (e) {
     console.log(e);
   }
-  return res.json({error: defaultErrMess});
+  return res.json({ error: defaultErrMess });
 });
 
 app.get("/filteredBooks", (req, res) => {
   const genres = req.queries.genres;
   const authors = req.queries.authors;
-  let books = []
-  try{
+  let books = [];
+  try {
     books = db.getFilteredBooks(authors, genres);
   } catch {
-    return res.json({error: defaultErrMess});
+    return res.json({ error: defaultErrMess });
   }
-  return res.json({books: books});
+  return res.json({ books: books });
 }); //by all coincidences with genres and authors
 
-app.patch("/editReview:id", checkSchema(editBookValidationSchema),async (req, res) => {
-  let bookReviewId = req.params.id;
-  let newBookReviewText = req.body.review;
-  try{
-    if(await db.checkBookExists(bookReviewId)){
-      let updatedSuccessfully = await db.editBookReview(bookReviewId, newBookReviewText);
-      if(updatedSuccessfully)
-        return res.json("Book review has been updated successfully!");
-    } else 
-      return res.json({error: "This book doesn`t exist!"});
-  } catch (e) {
-    console.log(e);
+app.patch(
+  "/editReview:id",
+  checkSchema(editBookValidationSchema),
+  async (req, res) => {
+    //addd logic for edidting rating of thr book
+    let bookReviewId = req.params.id;
+    let newBookReviewText = req.body.review;
+    try {
+      if (await db.checkBookExists(bookReviewId)) {
+        let updatedSuccessfully = await db.editBookReview(
+          bookReviewId,
+          newBookReviewText
+        );
+        if (updatedSuccessfully)
+          return res.json("Book review has been updated successfully!");
+      } else return res.json({ error: "This book doesn`t exist!" });
+    } catch (e) {
+      console.log(e);
+    }
+    return res.json({ error: defaultErrMess });
   }
-  return res.json({error: defaultErrMess});
-});
+);
 
-app.delete("/delete:id", async(req, res) =>{
+app.delete("/delete:id", async (req, res) => {
   let bookId = req.params.id;
-  try{
-    if(await db.checkBookExists(bookId)){
+  try {
+    if (await db.checkBookExists(bookId)) {
       let deletedSuccessfully = await db.deleteBook(bookId);
-      if(deletedSuccessfully)
+      if (deletedSuccessfully)
         return res.json("Book has been deleted successfully!");
-    } else 
-      return res.json({error: "This book doesn`t exist!"});
+    } else return res.json({ error: "This book doesn`t exist!" });
   } catch (e) {
     console.log(e);
   }
-  return res.json({error: defaultErrMess});
+  return res.json({ error: defaultErrMess });
 });
 
 app.listen(port, () => {
