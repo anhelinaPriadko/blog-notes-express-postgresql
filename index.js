@@ -17,6 +17,10 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 const basicURL = "https://openlibrary.org/api/books";
 const defaultErrMess = "Something went wrong, please retry again!";
+const fetchBookError =
+  "Something went wrong while fetching book data, please retry again!";
+const bookAlreadyExistsError = "This book is already exists!";
+const noInformationBook = "Can`t find information about this book!";
 
 app.get("/", async (req, res) => {
   try {
@@ -40,14 +44,9 @@ async function getBookDataByISBN(isbn) {
         jscmd: "data",
       },
     });
-
-    return (
-      data[`ISBN:${isbn}`] ?? fail("Can`t find information about this book!")
-    );
-  } catch (error) {
-    if (error.message === "Can`t find information about this book!")
-      throw error;
-    throw new Error(error.message);
+    return data[`ISBN:${isbn}`];
+  } catch (e) {
+    fail(fetchBookError);
   }
 }
 class Book {
@@ -65,19 +64,15 @@ class Book {
 }
 
 app.post("/add", checkSchema(addBookValidationSchema), async (req, res) => {
-  let error = null;
   let newBookId = null;
   let { isbn, review, genres, rating } = req.body;
   try {
-    if (await db.checkBookISBNIsNotDeleted(isbn))
-      fail("This book has already been added!");
-    if (await db.checkBookISBNIsDeleted(isbn)) {
-      newBookId = await db.addDeletedBookWithRelations(
-        isbn,
-        rating,
-        review,
-        genres
-      );
+    if (await db.checkBookExistsIsbn(isbn)) {
+      if (await db.checkBookIsDeletedIsbn(isbn)) {
+        await db.addDeletedBookWithRelations(isbn, rating, review, genres);
+      } else {
+        fail(bookAlreadyExistsError);
+      }
     } else {
       const bookReqData = await getBookDataByISBN(isbn);
       newBookId = await db.addBookWithRelations(
@@ -87,17 +82,11 @@ app.post("/add", checkSchema(addBookValidationSchema), async (req, res) => {
       );
     }
   } catch (e) {
-    if (
-      e.message === "This book has already been added!" ||
-      "Can`t find information about this book!"
-    )
-      error = e.message;
-    else error = defaultErrMess;
+    return res
+      .status(404)
+      .json({ error: e.message.length > 45 ? defaultErrMess : e.message });
   }
-  return res.json({
-    bookId: newBookId,
-    error: error,
-  });
+  return res.status(200).json({ bookId: newBookId });
 });
 
 app.get("/books/:bookId", async (req, res) => {

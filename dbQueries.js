@@ -40,16 +40,24 @@ export async function checkBookISBNIsDeleted(isbn) {
 }
 
 export async function checkBookExists(id) {
-  try {
-    const result = await db.query(
-      "select 1 from books where id = $1 and isdeleted = false",
-      [id]
-    );
-    return result.rows.length > 0;
-  } catch (e) {
-    console.log(e);
-  }
-  return false;
+  const result = await db.query(
+    "select 1 from books where id = $1 and isdeleted = true",
+    [id]
+  );
+  return result.rows.length > 0;
+}
+
+export async function checkBookExistsIsbn(isbn) {
+  const result = await db.query("select 1 from books where isbn = $1", [isbn]);
+  return result.rows.length > 0;
+}
+
+export async function checkBookIsDeletedIsbn(isbn) {
+  const result = await db.query(
+    "select 1 from books where isbn = $1 and isdeleted = true",
+    [isbn]
+  );
+  return result.rows.length > 0;
 }
 
 export async function addBook(client, book) {
@@ -157,8 +165,22 @@ async function addDeletedReview(client, bookId, review) {
   ]);
 }
 
-async function deleteBookGenresrelations(client, bookId) {
+async function deleteBookGenresRelations(client, bookId) {
   await client.query("delete from books_genres where book_id = $1", [bookId]);
+}
+
+async function addBookGenresRelations(client, bookId, genreId) {
+  await client.query(
+    "insert into books_genres (book_id, genre_id) values ($1, $2)",
+    [bookId, genreId]
+  );
+}
+
+async function addBookAuthorsRelations(client, bookId, authorId) {
+  await client.query(
+    "insert into books_authors (book_id, author_id) values ($1, $2)",
+    [bookId, authorId]
+  );
 }
 
 export async function addBookWithRelations(book, review, genres) {
@@ -169,23 +191,16 @@ export async function addBookWithRelations(book, review, genres) {
     await addBookReview(client, bookId, review);
     for (let genre of genres) {
       const genreId = await addGenre(client, genre);
-      await client.query(
-        "insert into books_genres (book_id, genre_id) values ($1, $2)",
-        [bookId, genreId]
-      );
+      await addBookGenresRelations(client, bookId, genreId);
     }
     for (let author of book.authors) {
       const authorId = await addAuthor(client, author);
-      await client.query(
-        "insert into books_authors (book_id, author_id) values ($1, $2)",
-        [bookId, authorId]
-      );
+      await addBookGenresRelations(client, bookId, authorId);
     }
     await client.query("commit");
     return bookId;
   } catch (error) {
     await client.query("rollback");
-    console.error(error);
     throw error;
   } finally {
     client.release();
@@ -199,6 +214,11 @@ async function addDeletedBook(client, bookId, rating) {
   );
 }
 
+export async function getBookId(client, isbn) {
+  return await client.query("select id from books where isbn = $1", [isbn]).rows[0]
+    .id;
+}
+
 export async function addDeletedBookWithRelations(
   isbn,
   rating,
@@ -208,23 +228,16 @@ export async function addDeletedBookWithRelations(
   const client = await db.connect();
   try {
     await client.query("begin");
-    let resultId = await client.query("select id from books where isbn = $1", [
-      isbn,
-    ]);
-    let bookId = resultId.rows[0].id;
+    let bookId = getBookId(client, isbn);
     await addDeletedBook(client, bookId, rating);
-    await deleteBookGenresrelations(client, bookId);
+    await deleteBookGenresRelations(client, bookId);
     await addDeletedReview(client, bookId, review);
     for (let genre of genres) {
       const genreId = await addGenre(client, genre);
-      await client.query(
-        "insert into books_genres (book_id, genre_id) values ($1, $2)",
-        [bookId, genreId]
-      );
+      await addBookGenresRelations(client, bookId, genreId);
     }
   } catch (e) {
     await client.query("rollback");
-    console.error(error);
     throw error;
   } finally {
     await client.release();
