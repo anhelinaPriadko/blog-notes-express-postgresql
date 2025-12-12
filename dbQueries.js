@@ -3,13 +3,8 @@ import { dbConfig } from "./config/dataBaseConfig.js";
 const db = new pg.Pool(dbConfig);
 
 export async function getGenres() {
-  try {
-    const result = await db.query("select name from genres order by name");
-    return result.rows.array();
-  } catch (error) {
-    console.log(error);
-  }
-  return [];
+  const result = await db.query("select name from genres order by name");
+  return result.rows.array();
 }
 
 export async function getAllBooks() {
@@ -33,8 +28,8 @@ export async function checkBookISBNIsDeleted(isbn) {
       [isbn]
     );
     return result.rows.length > 0;
-  } catch (error) {
-    console.log(error);
+  } catch (e) {
+    console.log(e);
   }
   return false;
 }
@@ -111,8 +106,8 @@ export async function getGenreId(name) {
       name,
     ]);
     return result.rows[0]?.id;
-  } catch (error) {
-    console.log(error);
+  } catch (e) {
+    console.log(e);
   }
   return null;
 }
@@ -141,8 +136,8 @@ export async function getAuthorId(name) {
       name,
     ]);
     return result.rows[0]?.id;
-  } catch (error) {
-    console.log(error);
+  } catch (e) {
+    console.log(e);
   }
   return null;
 }
@@ -199,9 +194,9 @@ export async function addBookWithRelations(book, review, genres) {
     }
     await client.query("commit");
     return bookId;
-  } catch (error) {
+  } catch (e) {
     await client.query("rollback");
-    throw error;
+    throw e;
   } finally {
     client.release();
   }
@@ -215,8 +210,8 @@ async function addDeletedBook(client, bookId, rating) {
 }
 
 export async function getBookId(client, isbn) {
-  return await client.query("select id from books where isbn = $1", [isbn]).rows[0]
-    .id;
+  return await client.query("select id from books where isbn = $1", [isbn])
+    .rows[0].id;
 }
 
 export async function addDeletedBookWithRelations(
@@ -236,9 +231,10 @@ export async function addDeletedBookWithRelations(
       const genreId = await addGenre(client, genre);
       await addBookGenresRelations(client, bookId, genreId);
     }
+    await client.query("commit");
   } catch (e) {
     await client.query("rollback");
-    throw error;
+    throw e;
   } finally {
     await client.release();
   }
@@ -246,36 +242,20 @@ export async function addDeletedBookWithRelations(
 
 export async function getFilteredBooks(authors, genres) {
   let books = [];
-  try {
-    const result = await db.query(
-      "select id, name, isbn, simage from get_books_by_filter($1, $2)" +
-        "where isdeleted = false",
-      [authors, genres]
-    );
-    books = result.rows;
-  } catch (e) {
-    console.log(e);
-  }
-
+  const result = await db.query(
+    "select id, name, isbn, simage from get_books_by_filter($1, $2)" +
+      "where isdeleted = false",
+    [authors, genres]
+  );
+  books = result.rows;
   return books;
 }
 
-export async function editBookReview(bookReviewId, newBookReviewText) {
-  try {
-    const result = await db.query("call update_book_review($1, $2, $3)", [
-      bookReviewId,
-      newBookReviewText,
-      null,
-    ]);
-    const rowsAffected = result.rows[0].p_rows_affected;
-
-    if (rowsAffected > 0) {
-      return true;
-    }
-  } catch (e) {
-    console.log(e);
-  }
-  return false;
+export async function editBookReview(client, bookId, newBookReviewText) {
+  await client.query("update book_reviews set review = $1 where id = $2", [
+    newBookReviewText,
+    bookId,
+  ]);
 }
 
 export async function deleteBook(bookId) {
@@ -292,6 +272,30 @@ export async function deleteBook(bookId) {
     console.log(e);
     await client.query("rollback");
     return false;
+  } finally {
+    client.release();
+  }
+}
+
+export async function editBookRating(client, bookId, rating) {
+  await client.query("update books set rating = $1 where id = $2", [
+    rating,
+    bookId,
+  ]);
+}
+
+export async function editBookRatingReview(bookId, rating, review) {
+  const client = db.connect();
+  try {
+    await client.query("begin");
+    if(rating)
+      await editBookRating(client, bookId, rating);
+    if(review)
+      await editBookReview(client, bookId, review);
+    await client.query("commit");
+  } catch (e) {
+    await client.query("rollback");
+    throw e;
   } finally {
     client.release();
   }
