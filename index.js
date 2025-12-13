@@ -125,18 +125,18 @@ app.get("/books/:bookId", async (req, res) => {
   }
 });
 
-///////// need to write validation for the req parameters ???? /////////
 app.get("/filteredBooks", async (req, res) => {
-  const genres = req.queries.genres;
-  const authors = req.queries.authors;
+  const genres = req.query.genres ? [].concat(req.query.genres) : [];
+  const authors = req.query.authors ? [].concat(req.query.authors) : [];
   let books = [];
   try {
     books = await db.getFilteredBooks(authors, genres);
-  } catch {
+  } catch (e){
+    console.log(e.message)
     return res.status(404).json({ error: defaultErrMess });
   }
   return res.status(200).json({ books: books });
-}); //by all coincidences with genres and authors
+});
 
 app.patch(
   "/editReview/:id",

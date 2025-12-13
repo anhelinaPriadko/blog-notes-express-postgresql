@@ -105,18 +105,19 @@ export async function getBookAuthors(bookId) {
 
 export async function getGenreId(name) {
   const result = await db.query("select id from genres where name = $1", [
-      name,
-    ]);
-    return result.rows[0]?.id ?? null;
+    name,
+  ]);
+  return result.rows[0]?.id ?? null;
 }
 
 export async function addGenre(client, bookGenre) {
   let result = await getGenreId(bookGenre);
   if (!result) {
-    result = (await client.query(
-      "insert into genres (name) values ($1) returning id",
-      [bookGenre]
-    )).rows[0].id;
+    result = (
+      await client.query("insert into genres (name) values ($1) returning id", [
+        bookGenre,
+      ])
+    ).rows[0].id;
   }
   return result;
 }
@@ -130,18 +131,20 @@ export async function addBookReview(client, id, review) {
 
 export async function getAuthorId(name) {
   const result = await db.query("select id from authors where name = $1", [
-      name,
-    ]);
+    name,
+  ]);
   return result.rows[0]?.id ?? null;
 }
 
 export async function addAuthor(client, author) {
   let result = await getAuthorId(author);
   if (!result) {
-    result = (await client.query(
-      "insert into authors (name) values ($1) returning id",
-      [author]
-    )).rows[0].id;
+    result = (
+      await client.query(
+        "insert into authors (name) values ($1) returning id",
+        [author]
+      )
+    ).rows[0].id;
   }
   return result;
 }
@@ -237,7 +240,7 @@ export async function addDeletedBookWithRelations(
 export async function getFilteredBooks(authors, genres) {
   let books = [];
   const result = await db.query(
-    "select id, name, isbn, simage from get_books_by_filter($1, $2)" +
+    "select id, name, isbn, simage from get_books_by_filter($1, $2) " +
       "where isdeleted = false",
     [authors, genres]
   );
