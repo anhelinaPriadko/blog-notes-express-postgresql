@@ -106,7 +106,7 @@ app.get("/books/:bookId", async (req, res) => {
   let bookId = req.params.bookId;
   try {
     let book = await db.getBook(bookId);
-    if (book.id) {
+    if (book?.id) {
       let genres = await db.getBookGenres(bookId);
       let authors = await db.getBookAuthors(bookId);
       return res.status(200).json({
@@ -119,10 +119,10 @@ app.get("/books/:bookId", async (req, res) => {
     }
   } catch (e) {
     console.log(e.message);
+    return res
+      .status(404)
+      .json({ error: e.message.length > 70 ? defaultErrMess : e.message });
   }
-  return res
-    .status(404)
-    .json({ error: e.message.length > 70 ? defaultErrMess : e.message });
 });
 
 ///////// need to write validation for the req parameters ???? /////////

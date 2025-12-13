@@ -85,8 +85,8 @@ export async function getBook(id) {
 
 export async function getBookGenres(bookId) {
   const genresResult = await db.query(
-    "select * from genres " +
-      "join books_genres on genres.id = books_genres.genre_id " +
+    "select g.id, g.name from genres as g " +
+      "join books_genres on g.id = books_genres.genre_id " +
       "where books_genres.book_id = $1",
     [bookId]
   );
@@ -95,8 +95,8 @@ export async function getBookGenres(bookId) {
 
 export async function getBookAuthors(bookId) {
   const authorsResult = await db.query(
-    "select * from authors " +
-      "join books_authors on authors.id = books_authors.author_id " +
+    "select a.id, a.name from authors as a " +
+      "join books_authors on a.id = books_authors.author_id " +
       "where books_authors.book_id = $1",
     [bookId]
   );
