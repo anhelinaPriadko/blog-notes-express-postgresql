@@ -104,26 +104,21 @@ export async function getBookAuthors(bookId) {
 }
 
 export async function getGenreId(name) {
-  try {
-    const result = await db.query("select id from genres where name = $1", [
+  const result = await db.query("select id from genres where name = $1", [
       name,
     ]);
-    return result.rows[0]?.id;
-  } catch (e) {
-    console.log(e);
-  }
-  return null;
+    return result.rows[0]?.id ?? null;
 }
 
 export async function addGenre(client, bookGenre) {
   let result = await getGenreId(bookGenre);
   if (!result) {
-    result = await client.query(
+    result = (await client.query(
       "insert into genres (name) values ($1) returning id",
       [bookGenre]
-    );
+    )).rows[0].id;
   }
-  return result.rows[0].id;
+  return result;
 }
 
 export async function addBookReview(client, id, review) {
@@ -134,26 +129,21 @@ export async function addBookReview(client, id, review) {
 }
 
 export async function getAuthorId(name) {
-  try {
-    const result = await db.query("select id from authors where name = $1", [
+  const result = await db.query("select id from authors where name = $1", [
       name,
     ]);
-    return result.rows[0]?.id;
-  } catch (e) {
-    console.log(e);
-  }
-  return null;
+  return result.rows[0]?.id ?? null;
 }
 
 export async function addAuthor(client, author) {
   let result = await getAuthorId(author);
   if (!result) {
-    result = await client.query(
+    result = (await client.query(
       "insert into authors (name) values ($1) returning id",
       [author]
-    );
+    )).rows[0].id;
   }
-  return result.rows[0].id;
+  return result;
 }
 
 async function addDeletedReview(client, bookId, review) {
@@ -193,7 +183,7 @@ export async function addBookWithRelations(book, review, genres) {
     }
     for (let author of book.authors) {
       const authorId = await addAuthor(client, author);
-      await addBookGenresRelations(client, bookId, authorId);
+      await addBookAuthorsRelations(client, bookId, authorId);
     }
     await client.query("commit");
     return bookId;
@@ -235,6 +225,7 @@ export async function addDeletedBookWithRelations(
       await addBookGenresRelations(client, bookId, genreId);
     }
     await client.query("commit");
+    return bookId;
   } catch (e) {
     await client.query("rollback");
     throw e;

@@ -2,11 +2,14 @@ export const addBookValidationSchema = {
   isbn: {
     in: ["body"],
     trim: true,
-    isLength: {
-      min: 10,
-      max: 13,
-      errorMessage: "ISBN should have length of 10 or 13 characters.",
-    },
+    custom: {
+      options: (value) => {
+        const len = value.length;
+        if (len === 10 || len === 13) {
+          return true;
+        }
+        throw new Error("ISBN must contain 10 or 13 characters.");
+      }},
     isNumeric: {
       errorMessage: "ISBN must contain only number characters.",
     },
@@ -16,8 +19,7 @@ export const addBookValidationSchema = {
     in: ["body"],
     trim: true,
     isLength: {
-      min: 10,
-      max: 3000,
+      options: { min: 10, max: 3000 },
       errorMessage: "Review should have length from 10 to 3000 characters.",
     },
   },
@@ -54,7 +56,7 @@ export const addBookValidationSchema = {
 };
 
 export const editBookValidationSchema = {
-    review: {
+  review: {
     in: ["body"],
     trim: true,
     isLength: {
@@ -63,4 +65,4 @@ export const editBookValidationSchema = {
       errorMessage: "Review should have length from 10 to 3000 characters.",
     },
   },
-}
+};

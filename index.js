@@ -46,8 +46,9 @@ async function getBookDataByISBN(isbn) {
         jscmd: "data",
       },
     });
-    return data[`ISBN:${isbn}`];
+    return data[`ISBN:${isbn}`] ?? null;
   } catch (e) {
+    console.log(e);
     fail(fetchBookError);
   }
 }
@@ -66,30 +67,39 @@ class Book {
 }
 
 app.post("/add", checkSchema(addBookValidationSchema), async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
   let newBookId = null;
   let { isbn, review, genres, rating } = req.body;
   try {
     if (await db.checkBookExistsIsbn(isbn)) {
       if (await db.checkBookIsDeletedIsbn(isbn)) {
-        await db.addDeletedBookWithRelations(isbn, rating, review, genres);
-      } else {
-        fail(bookAlreadyExistsError);
-      }
+        newBookId = await db.addDeletedBookWithRelations(
+          isbn,
+          rating,
+          review,
+          genres
+        );
+      } else fail(bookAlreadyExistsError);
     } else {
       const bookReqData = await getBookDataByISBN(isbn);
-      newBookId = await db.addBookWithRelations(
-        new Book(isbn, bookReqData, rating),
-        review,
-        genres
-      );
+      if (bookReqData)
+        newBookId = await db.addBookWithRelations(
+          new Book(isbn, bookReqData, rating),
+          review,
+          genres
+        );
+      else fail(noInformationBook);
     }
   } catch (e) {
     console.log(e.message);
     return res
       .status(404)
-      .json({ error: e.message.length > 45 ? defaultErrMess : e.message });
+      .json({ error: e.message.length > 70 ? defaultErrMess : e.message });
   }
-  return res.status(200).json({ bookId: newBookId });
+  return res.status(201).json({ bookId: newBookId });
 });
 
 app.get("/books/:bookId", async (req, res) => {
@@ -112,9 +122,10 @@ app.get("/books/:bookId", async (req, res) => {
   }
   return res
     .status(404)
-    .json({ error: e.message.length > 45 ? defaultErrMess : e.message });
+    .json({ error: e.message.length > 70 ? defaultErrMess : e.message });
 });
 
+///////// need to write validation for the req parameters ???? /////////
 app.get("/filteredBooks", async (req, res) => {
   const genres = req.queries.genres;
   const authors = req.queries.authors;
@@ -128,9 +139,13 @@ app.get("/filteredBooks", async (req, res) => {
 }); //by all coincidences with genres and authors
 
 app.patch(
-  "/editReview:id",
+  "/editReview/:id",
   checkSchema(editBookValidationSchema),
   async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
     let bookId = req.params.id;
     let newBookRating = req.params.rating;
     let newBookReviewText = req.body.review;
@@ -142,7 +157,7 @@ app.patch(
       console.log(e.message);
       return res
         .status(404)
-        .json({ error: e.message.length > 45 ? defaultErrMess : e.message });
+        .json({ error: e.message.length > 70 ? defaultErrMess : e.message });
     }
     return res.status(200).json({ bookId: bookId });
   }
@@ -157,7 +172,7 @@ app.delete("/delete:id", async (req, res) => {
     console.log(e.message);
     res
       .status(404)
-      .json({ error: e.message.length > 45 ? defaultErrMess : e.message });
+      .json({ error: e.message.length > 70 ? defaultErrMess : e.message });
   }
   return res.status(200).json({ bookId: bookId });
 });
