@@ -39,7 +39,7 @@ export async function checkBookISBNIsDeleted(isbn) {
 
 export async function checkBookExists(id) {
   const result = await db.query(
-    "select 1 from books where id = $1 and isdeleted = true",
+    "select 1 from books where id = $1 and isdeleted = false",
     [id]
   );
   return result.rows.length > 0;
@@ -269,7 +269,7 @@ export async function editBookRating(client, bookId, rating) {
 }
 
 export async function editBookRatingReview(bookId, rating, review) {
-  const client = db.connect();
+  const client = await db.connect();
   try {
     await client.query("begin");
     if (rating) await editBookRating(client, bookId, rating);

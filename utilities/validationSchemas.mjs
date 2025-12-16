@@ -1,3 +1,12 @@
+const rating = {
+  in: ["body"],
+  isInt: {
+    options: { min: 1, max: 10 },
+    errorMessage: "Rating must be a whole number between 1 and 10.",
+  },
+  toInt: true,
+};
+
 export const addBookValidationSchema = {
   isbn: {
     in: ["body"],
@@ -9,7 +18,8 @@ export const addBookValidationSchema = {
           return true;
         }
         throw new Error("ISBN must contain 10 or 13 characters.");
-      }},
+      },
+    },
     isNumeric: {
       errorMessage: "ISBN must contain only number characters.",
     },
@@ -56,12 +66,12 @@ export const addBookValidationSchema = {
 };
 
 export const editBookValidationSchema = {
+  rating: rating,
   review: {
     in: ["body"],
     trim: true,
     isLength: {
-      min: 10,
-      max: 3000,
+      options: { min: 10, max: 3000 },
       errorMessage: "Review should have length from 10 to 3000 characters.",
     },
   },

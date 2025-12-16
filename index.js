@@ -147,7 +147,7 @@ app.patch(
       return res.status(400).json({ errors: errors.array() });
     }
     let bookId = req.params.id;
-    let newBookRating = req.params.rating;
+    let newBookRating = req.body.rating;
     let newBookReviewText = req.body.review;
     try {
       if (await db.checkBookExists(bookId)) {
