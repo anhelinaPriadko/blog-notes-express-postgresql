@@ -75,7 +75,7 @@ export async function addBook(client, book) {
 
 export async function getBook(id) {
   const bookResult = await db.query(
-    "select books.id as id, name, isbn, limage, review from books " +
+    "select books.id as id, name, isbn, limage, review, rating from books " +
       "join book_reviews on books.id = book_reviews.id " +
       "where books.id = $1 and isdeleted = false",
     [id]
@@ -150,7 +150,7 @@ export async function addAuthor(client, author) {
 }
 
 async function addDeletedReview(client, bookId, review) {
-  await client.query("update book_reiews set review = $1 where id = $2", [
+  await client.query("update book_reviews set review = $1 where id = $2", [
     review,
     bookId,
   ]);
@@ -206,7 +206,7 @@ async function addDeletedBook(client, bookId, rating) {
 }
 
 export async function getBookId(client, isbn) {
-  return await client.query("select id from books where isbn = $1", [isbn])
+  return (await client.query("select id from books where isbn = $1", [isbn]))
     .rows[0].id;
 }
 
@@ -219,7 +219,7 @@ export async function addDeletedBookWithRelations(
   const client = await db.connect();
   try {
     await client.query("begin");
-    let bookId = getBookId(client, isbn);
+    let bookId = await getBookId(client, isbn);
     await addDeletedBook(client, bookId, rating);
     await deleteBookGenresRelations(client, bookId);
     await addDeletedReview(client, bookId, review);
@@ -256,7 +256,7 @@ export async function editBookReview(client, bookId, newBookReviewText) {
 }
 
 export async function deleteBook(bookId) {
-  await client.query("update books set isdeleted = true where id = $1", [
+  await db.query("update books set isdeleted = true where id = $1", [
     bookId,
   ]);
 }

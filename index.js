@@ -102,8 +102,8 @@ app.post("/add", checkSchema(addBookValidationSchema), async (req, res) => {
   return res.status(201).json({ bookId: newBookId });
 });
 
-app.get("/books/:bookId", async (req, res) => {
-  let bookId = req.params.bookId;
+app.get("/books/:id", async (req, res) => {
+  let bookId = req.params.id;
   try {
     let book = await db.getBook(bookId);
     if (book?.id) {
@@ -131,8 +131,8 @@ app.get("/filteredBooks", async (req, res) => {
   let books = [];
   try {
     books = await db.getFilteredBooks(authors, genres);
-  } catch (e){
-    console.log(e.message)
+  } catch (e) {
+    console.log(e.message);
     return res.status(404).json({ error: defaultErrMess });
   }
   return res.status(200).json({ books: books });
@@ -163,14 +163,14 @@ app.patch(
   }
 );
 
-app.delete("/delete:id", async (req, res) => {
+app.delete("/books/:id", async (req, res) => {
   let bookId = req.params.id;
   try {
     if (await db.checkBookExists(bookId)) await db.deleteBook(bookId);
     else fail(bookDontExistError);
   } catch (e) {
     console.log(e.message);
-    res
+    return res
       .status(404)
       .json({ error: e.message.length > 70 ? defaultErrMess : e.message });
   }
